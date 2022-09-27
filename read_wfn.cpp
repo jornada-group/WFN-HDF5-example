@@ -35,6 +35,7 @@ void get_dset_shape(hid_t file, const char *dset_name)
 
 int main(void)
 {
+    char fname[64];
     int nrk, *ngk, gvecs_ndims, nb, nspin, nspinor, ns;
     hsize_t *gvecs_dims;
 
@@ -86,6 +87,20 @@ int main(void)
     // Pointer to the memory region in the file
     hid_t dspace_c = H5Dget_space(dset_c);
 
+    {
+        cout << "Dumping header" << endl;
+        FILE *fp = fopen("header.dat", "w");
+        fprintf(fp, "nrk: %d\n", nrk);
+        fprintf(fp, "nspin: %d\n", nspin);
+        fprintf(fp, "nspinor: %d\n", nspinor);
+        fprintf(fp, "nb: %d\n", nb);
+        fprintf(fp, "ngk:\n");
+        for (int ik=0; ik<nrk; ++ik) {
+            fprintf(fp, "%d\n", ngk[ik]);
+        }
+        fclose(fp);
+    }
+
     cout << "Dumping wavefunctions" << endl;
     // Offset in Gs associated with each k-point ik.
     // We start without any offset.
@@ -97,36 +112,34 @@ int main(void)
         int gvecs[ng_ik*3];
 
         // How much to offset the memory we are reading from file?
-        hsize_t offset_g[2] = {(hsize_t) ng_offset, 0};
+        hsize_t offset_g[2] = {(hsize_t)ng_offset, 0};
         // How many entries to read?
-        hsize_t count_g[2] = {(hsize_t) ng_ik, 3};
+        hsize_t count_g[2] = {(hsize_t)ng_ik, 3};
 
         // Pointer to the memory region in the buffer
         hid_t memspace_g = H5Screate_simple(2, count_g, NULL);
         // Select the section (hyperslab) of the gvecs dataset to read
         H5Sselect_hyperslab(dspace_g, H5S_SELECT_SET, offset_g, NULL, count_g, NULL);
         H5Dread(dset_g, H5T_STD_I32LE, memspace_g, dspace_g, H5P_DEFAULT, gvecs);
-	// Always close whatever you open/create
+
+        // Always close whatever you open/create
         H5Sclose(memspace_g);
 
         // Coefficients is of shape (nb,ngk)
         complex<double> cg[nb*ng_ik];
 
         // How much to offset the memory we are reading from file?
-        hsize_t offset_c[4] = {0, 0, (hsize_t) ng_offset, 0};
+        hsize_t offset_c[4] = {0, 0, (hsize_t)ng_offset, 0};
         // How many entries to read?
-        hsize_t count_c[4] = {(hsize_t) nb, (hsize_t) ns, (hsize_t) ng_ik, 2};
+        hsize_t count_c[4] = {(hsize_t)nb, (hsize_t)ns, (hsize_t)ng_ik, 2};
 
         // Pointer to the memory region in the buffer
         hid_t memspace_c = H5Screate_simple(4, count_c, NULL);
         // Select the section (hyperslab) of the coeffs dataset to read
         H5Sselect_hyperslab(dspace_c, H5S_SELECT_SET, offset_c, NULL, count_c, NULL);
         H5Dread(dset_c, H5T_IEEE_F64LE, memspace_c, dspace_c, H5P_DEFAULT, cg);
-	// Always close whatever you open/create
+	    // Always close whatever you open/create
         H5Sclose(memspace_c);
-
-
-        char fname[64];
 
         sprintf(fname, "gvecs_ik_%02d.dat", ik);
         FILE *fp = fopen(fname, "w");
@@ -136,16 +149,15 @@ int main(void)
         }
         fclose(fp);
 
-	for (int ib=0; ib<nb; ++ib) {
+        for (int ib=0; ib<nb; ++ib) {
             sprintf(fname, "coeffs_ik_%02d_ib_%04d.dat", ik, ib);
             FILE *fp = fopen(fname, "w");
             for (int ig=0; ig<ng_ik; ++ig) {
-                fprintf(fp, "%13.6e %13.6e\n", 
+                fprintf(fp, "%22.15e %22.15e\n", 
                             cg[ib*ng_ik*ns + ig].real(), cg[ib*ng_ik*ns + ig].imag());
             }
             fclose(fp);
-	}
-
+        }
         ng_offset += ng_ik;
     }
 

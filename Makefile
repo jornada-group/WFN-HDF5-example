@@ -7,6 +7,14 @@ LINK = CC
 CXX = CC
 #CXXFLAGS = -I$(HDF5DIR)/include
 
+all: write_wfn.x read_wfn.x
+
+write_wfn.x: write_wfn.o
+	$(LINK) -o $@ $^ $(LDFLAGS)
+
+write_wfn.o: write_wfn.cpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $^
+
 read_wfn.x: read_wfn.o
 	$(LINK) -o $@ $^ $(LDFLAGS)
 
